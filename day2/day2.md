@@ -218,7 +218,7 @@ ENTRYPOINT ["npm", "run", "start"]
 Les deux commandes de build
 ```
 docker build --target dev -t portfolio-dev .
-docker build --target dev -t portfolio-prod .
+docker build --target prod -t portfolio-prod .
 ```
 
 ## Part III : Base image
@@ -335,6 +335,62 @@ DURATION=$(echo "$END - $START" | bc)
 
 echo "Temps total : $DURATION secondes"
 ```
+
+J'utiliserai Debian pour la suite
+
+## Part IV : En vrac
+
+### I. Clean caches
+
+```
+FROM debian:12.5-slim AS base
+
+ENV ENVIRONMENT=prod
+WORKDIR /app
+
+RUN apt-get update && \
+    apt-get install -y curl gnupg ca-certificates && \
+    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y nodejs && \
+    apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+COPY package*.json ./
+RUN npm install
+
+FROM base AS prod
+COPY . .
+RUN npm run build
+
+ENTRYPOINT ["npm", "run", "start"]
+```
+
+```apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*```
+
+```apt-get clean``` me permet de clean le cache local
+
+```rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*``` me permet de supprimer les fichiers temporaires à différents endroits et la liste de package de l'update
+
+
+### II. Labels
+On peut ajouter ces Labels dans le stage prod:
+```
+LABEL authors="Tristan Le Du <tristan.le-du@efrei.net>" \
+      url="https://github.com/ShrimpPR/portfolio" \
+      source="https://github.com/ShrimpPR/portfolio" \
+      vendor="EFREI Bordeaux"
+```
+
+On obtient donc cet output en faisant docker image inspect portfolio-app:
+```
+"Labels": {
+  "authors": "Tristan Le Du <tristan.le-du@efrei.net>",
+  "source": "https://github.com/ShrimpPR/portfolio",
+  "url": "https://github.com/ShrimpPR/portfolio",
+  "vendor": "EFREI Bordeaux"
+  }
+```
+
+### Utilisateur Applicatif
 
 
 Lien vers mon projet
